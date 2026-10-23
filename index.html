@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dash DFU Trigger</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 50px; background: #222; color: #fff; }
+        button { padding: 15px 30px; font-size: 18px; border-radius: 8px; border: none; background: #008cba; color: white; cursor: pointer; }
+        button:hover { background: #005f73; }
+        #log { margin-top: 20px; white-space: pre-wrap; color: #00ffcc; text-align: left; background: #111; padding: 15px; border-radius: 5px; }
+    </style>
+</head>
+<body>
+
+    <h2>Công cụ ép DFU cho Robot Dash</h2>
+    <p>Nhấn nút bên dưới để quét và gửi lệnh DFU sang Dash</p>
+    <button onclick="sendDFUCommand()">Kết Nối & Ép DFU</button>
+
+    <div id="log">Sẵn sàng...</div>
+
+    <script>
+        function log(msg) {
+            document.getElementById('log').innerText += "\n" + msg;
+            console.log(msg);
+        }
+
+        async function sendDFUCommand() {
+            try {
+                log("Đang tìm kiếm thiết bị Bluetooth...");
+                
+                // Quét thiết bị BLE có tên bắt đầu bằng Dash hoặc DAnna
+                const device = await navigator.bluetooth.requestDevice({
+                    filters: [
+                        { namePrefix: 'Dash' },
+                        { namePrefix: 'DAnna' }
+                    ],
+                    optionalServices: ['0000ffe0-0000-1000-8000-00805f9b34fb'] // UUID mặc định của Dash
+                });
+
+                log("Đã chọn robot: " + device.name);
+                log("Đang kết nối GATT Server...");
+                const server = await device.gatt.connect();
+
+                log("Đang lấy Service...");
+                const service = await server.getPrimaryService('0000ffe0-0000-1000-8000-00805f9b34fb');
+
+                log("Đang lấy Characteristic...");
+                const characteristic = await service.getCharacteristic('0000ffe1-0000-1000-8000-00805f9b34fb');
+
+                log("Đang gửi lệnh kích hoạt DFU...");
+                // Gửi chuỗi Byte lệnh reset sang DFU
+                const dfuCommand = new Uint8Array([0x03, 0xFF, 0x01, 0x00]); 
+                await characteristic.writeValue(dfuCommand);
+
+                log("===> ĐÃ GỬI LỆNH THÀNH CÔNG! Kiểm tra xem robot đã đổi màu đèn DFU chưa.");
+
+            } catch (error) {
+                log("LỖI: " + error.message);
+            }
+        }
+    </script>
+</body>
+</html>
